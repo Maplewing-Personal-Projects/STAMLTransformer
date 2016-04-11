@@ -77,7 +77,11 @@ var STAMLTransformer = (function(){
 		return result;
 	}
 
-	STAMLTransformer.prototype.XMLtoContent = function(xmlNode, xmlDoc, setting){
+	STAMLTransformer.prototype.XMLtoContent = function(xmlNode, userdata, linkdata){
+		if( xmlNode.childNodes.length === 1 && xmlNode.firstChild.nodeType === 3 ){
+			return xmlNode.firstChild.nodeValue;
+		}
+
 		var result = [];
 		var childNodes = xmlNode.childNodes;
 		for( var i = 0 ; i < childNodes.length ; i++ ){
@@ -86,18 +90,25 @@ var STAMLTransformer = (function(){
 			}
 			else if( childNodes[i].nodeType === 1 ){
 				var nodeData = { type: childNodes[i].nodeName };
-				var children = childNodes[i].childNodes;
-				for( var j = 0 ; j < children.length ; j++ ){
-					if( children[j].nodeType === 3 ){
-						nodeData.content = children[j].nodeValue;
-					}
-					else if( children[j].nodeType === 2 ){
-						if( children[j].nodeName === "userdataRef" ){
-							xmlDoc.getElementsByTagName("userdata")
-						}
+				if( childNodes[i].hasAttribute("subtype") ){
+					nodeData.subtype = childNodes[i].getAttribute("subtype") ;
+				}
+
+				if( childNodes[i].hasAttribute("userdataRef") ){
+					nodeData.userdata = userdata[childNodes[i].getAttribute("userdataRef")];
+				}
+
+				if( childNodes[i].hasAttribute("linkdataRef") ){
+					nodeData.userdata = linkdata[childNodes[i].getAttribute("linkdataRef")];
+				}
+
+				for( var j = 0 ; j < childNodes[i].childNodes.length ; j++ ){
+					if( childNodes[i].childNodes[j].nodeType === 3 ){
+						nodeData.content = childNodes[i].childNodes[j].nodeValue;
 					}
 				}
 
+				result.push(nodeData);
 			}
 		}
 
@@ -166,7 +177,7 @@ var STAMLTransformer = (function(){
 		for( var i = 0 ; i < userdata.length ; i++ ){
 			var dataNode = xmlDoc.createElement("data");
 			var id = xmlDoc.createAttribute("refID");
-			id.value = i;
+			id.value = userdata[i].id;
 			dataNode.setAttributeNode(id);
 
 			for( var key in userdata[i] ){
@@ -206,13 +217,10 @@ var STAMLTransformer = (function(){
 		var userdata = {}, linkdata = {};
 		var dataNodes = xmlDoc.getElementsByTagName("userdata")[0].getElementsByTagName("data");
 		for( var i = 0 ; i < dataNodes.length ; i++ ){
-			var data = {};
+			var data = { id: dataNodes[i].getAttribute("refID") };
 			var childNodes = dataNodes[i].childNodes;
 			for( var j = 0 ; j < childNodes.length ; j++ ){
-				if( childNodes[i].nodeType === 2 && childNodes[i].nodeName === "refID" ){
-					data.id = childNodes[i].nodeValue;
-				}
-				else if( childNodes[i].nodeType === 1 ){
+				if( childNodes[i].nodeType === 1 ){
 					data[childNodes[i].nodeName] = childNodes[i].firstChild.nodeValue;
 				}
 			}
@@ -223,22 +231,51 @@ var STAMLTransformer = (function(){
 
 		var linkNodes = xmlDoc.getElementsByTagName("linkdata")[0].getElementsByTagName("link");
 		for( var i = 0 ; i < linkNodes.length ; i++ ){
-			var link = {};
+			var link = { id: linkNodes[i].getAttribute("refID") };
 			var childNodes = linkNodes[i].childNodes;
 			for( var j = 0 ; j < childNodes.length ; j++ ){
-				if( childNodes[i].nodeType === 2 && childNodes[i].nodeName === "refID" ){
-					link.id = childNodes[i].nodeValue;
-				}
-				else if( childNodes[i].nodeType === 1 ){
+				if( childNodes[i].nodeType === 1 ){
 					link[childNodes[i].nodeName] = childNodes[i].firstChild.nodeValue;
 				}
 			}
 
-			linkdata[data.id] = link;
+			linkdata[link.id] = link;
 		}
 
-		console.log(userdata);
-		console.log(linkdata);
+		var chapters = xmlDoc.getElementsByTagName("chapter");
+		for( var i = 0 ; i < chapters.length ; i++ ){
+			var chapterData = [];
+			var sectionsNode = chapters[i].getElementsByTagName("section");
+			for( var j = 0 ; j < sectionsNode.length ; j++ ){
+				chapterData.push( this.XMLtoContent(sectionsNode[j], userdata, linkdata) );
+			}
+			sections.push(chapterData);
+		}
+
+		console.log(sections);
+
+		var metadataNodes = xmlDoc.getElementsByTagName("metadata")[0].childNodes;
+		for( var i = 0 ; i < metadataNodes.length ; i++ ){
+			if( metadataNodes[i].nodeType === 1 ){
+				metadata[metadataNodes[i].nodeName] = this.XMLtoContent(metadataNodes[i], userdata, linkdata);
+			}
+		}
+
+		console.log( metadata );
+
+		var applications = xmlDoc.getElementsByTagName("applicationSettings")[0].childNodes;
+		for( var i = 0 ; i < applications.length ; i++ ){
+			var applicationData = { name: applications[i].nodeName };
+			var appChildNodes = applications[i].childNodes;
+			for( var j = 0 ; j < appChildNodes.length ; j++ ){
+				if( appChildNodes[j].nodeType === 1 ){
+					applicationData[appChildNodes[j].nodeName] = appChildNodes[j].firstChild.nodeValue;
+				}
+			}
+			application.push(applicationData);
+		}
+
+		console.log( application );
 
 		return {
 			metadata: metadata, 
