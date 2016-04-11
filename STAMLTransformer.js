@@ -10,16 +10,9 @@ var STAMLTransformer = (function(){
 	   return typeof val === 'string' || ((!!val && typeof val === 'object') && Object.prototype.toString.call(val) === '[object String]');
 	}
 	
-	function STAMLTransformer(metadataTransformer, sectionDivider, tagTransformer, applicationSetting, merge ){
-		this.metadataTransformer = metadataTransformer;
-		this.sectionDivider = sectionDivider;
-		this.tagTransformer = tagTransformer;
-		if( applicationSetting !== undefined ){
-			this.applicationSetting = applicationSetting;
-		}
-
-		if( merge !== undefined ){
-			this.merge = merge;
+	function STAMLTransformer(functions){
+		for( var key in functions ){
+			this[key] = functions[key];
 		}
 	}
 
@@ -44,9 +37,14 @@ var STAMLTransformer = (function(){
 						   this.applicationSetting ? this.applicationSetting(context) : undefined );
 	}
 
+
+	STAMLTransformer.prototype.transformBack = function(STAMLcontext){
+		return this.mergeToContext( this.unmerge(STAMLcontext) );
+	}
+
 	STAMLTransformer.prototype.contentToXMLString = function(content, setting){
 		var checkList = ["userdata", "linkdata"];
-		var result = { content: ""};
+		var result = { content: "" };
 		for( var i = 0 ; i < checkList.length ; i++ ){
 			result[checkList[i]] = [];
 		}
@@ -79,6 +77,33 @@ var STAMLTransformer = (function(){
 		return result;
 	}
 
+	STAMLTransformer.prototype.XMLtoContent = function(xmlNode, xmlDoc, setting){
+		var result = [];
+		var childNodes = xmlNode.childNodes;
+		for( var i = 0 ; i < childNodes.length ; i++ ){
+			if( childNodes[i].nodeType === 3 ){
+				result.push( childNodes[i].nodeValue );
+			}
+			else if( childNodes[i].nodeType === 1 ){
+				var nodeData = { type: childNodes[i].nodeName };
+				var children = childNodes[i].childNodes;
+				for( var j = 0 ; j < children.length ; j++ ){
+					if( children[j].nodeType === 3 ){
+						nodeData.content = children[j].nodeValue;
+					}
+					else if( children[j].nodeType === 2 ){
+						if( children[j].nodeName === "userdataRef" ){
+							xmlDoc.getElementsByTagName("userdata")
+						}
+					}
+				}
+
+			}
+		}
+
+		return result;
+	}
+
 	STAMLTransformer.prototype.appendAllChildren = function( nodeString, nodeTo ){
 		var parser = new DOMParser();
 		var xmlTemp = parser.parseFromString("<append>" + nodeString + "</append>", "text/xml");
@@ -89,7 +114,7 @@ var STAMLTransformer = (function(){
 	}
 
 	STAMLTransformer.prototype.merge = function(metadata, sections, application){
-		var xmlString = "<STAML><metadata></metadata><article></article><applicationSettings></applicationSettings><userdata></userdata><linkSection></linkSection></STAML>";
+		var xmlString = "<STAML><metadata></metadata><article></article><applicationSettings></applicationSettings><userdata></userdata><linkdata></linkdata></STAML>";
 		var parser = new DOMParser();
 		var xmlDoc = parser.parseFromString(xmlString, "text/xml");
 
@@ -101,8 +126,8 @@ var STAMLTransformer = (function(){
 			
 			this.appendAllChildren( result.content, node );
 
-			userdata.concat(result.userdata);
-			linkdata.concat(result.linkdata);
+			userdata = userdata.concat(result.userdata);
+			linkdata = linkdata.concat(result.linkdata);
 
 
 			xmlDoc.getElementsByTagName("metadata")[0].appendChild(node);
@@ -117,8 +142,8 @@ var STAMLTransformer = (function(){
 			
 				this.appendAllChildren( result.content, sectionNode );
 
-				userdata.concat(result.userdata);
-				linkdata.concat(result.linkdata);
+				userdata = userdata.concat(result.userdata);
+				linkdata = linkdata.concat(result.linkdata);
 				chapterNode.appendChild(sectionNode);
 			}
 
@@ -140,10 +165,12 @@ var STAMLTransformer = (function(){
 
 		for( var i = 0 ; i < userdata.length ; i++ ){
 			var dataNode = xmlDoc.createElement("data");
-			var id = dataNode.createAttribute("refID");
+			var id = xmlDoc.createAttribute("refID");
 			id.value = i;
+			dataNode.setAttributeNode(id);
 
 			for( var key in userdata[i] ){
+				if( key === "id" ) continue;
 				var node = xmlDoc.createElement(key);
 				node.appendChild(xmlDoc.createTextNode(userdata[i][key]));
 				dataNode.appendChild(node);
@@ -154,10 +181,12 @@ var STAMLTransformer = (function(){
 
 		for( var i = 0 ; i < linkdata.length ; i++ ){
 			var linkNode = xmlDoc.createElement("link");
-			var id = linkNode.createAttribute("refID");
+			var id = xmlDoc.createAttribute("refID");
 			id.value = i;
+			linkNode.setAttributeNode(id);
 
 			for( var key in linkdata[i] ){
+				if( key === "id" ) continue;
 				var node = xmlDoc.createElement(key);
 				node.appendChild(xmlDoc.createTextNode(linkdata[i][key]));
 				linkNode.appendChild(node);
@@ -169,6 +198,54 @@ var STAMLTransformer = (function(){
 		return new XMLSerializer().serializeToString(xmlDoc);
 	}
 
+	STAMLTransformer.prototype.unmerge = function(STAMLcontext){
+		var metadata = {}, sections = [], application = [];
+		var parser = new DOMParser();
+		var xmlDoc = parser.parseFromString(STAMLcontext, "text/xml");
+
+		var userdata = {}, linkdata = {};
+		var dataNodes = xmlDoc.getElementsByTagName("userdata")[0].getElementsByTagName("data");
+		for( var i = 0 ; i < dataNodes.length ; i++ ){
+			var data = {};
+			var childNodes = dataNodes[i].childNodes;
+			for( var j = 0 ; j < childNodes.length ; j++ ){
+				if( childNodes[i].nodeType === 2 && childNodes[i].nodeName === "refID" ){
+					data.id = childNodes[i].nodeValue;
+				}
+				else if( childNodes[i].nodeType === 1 ){
+					data[childNodes[i].nodeName] = childNodes[i].firstChild.nodeValue;
+				}
+			}
+
+			userdata[data.id] = data;
+		}
+
+
+		var linkNodes = xmlDoc.getElementsByTagName("linkdata")[0].getElementsByTagName("link");
+		for( var i = 0 ; i < linkNodes.length ; i++ ){
+			var link = {};
+			var childNodes = linkNodes[i].childNodes;
+			for( var j = 0 ; j < childNodes.length ; j++ ){
+				if( childNodes[i].nodeType === 2 && childNodes[i].nodeName === "refID" ){
+					link.id = childNodes[i].nodeValue;
+				}
+				else if( childNodes[i].nodeType === 1 ){
+					link[childNodes[i].nodeName] = childNodes[i].firstChild.nodeValue;
+				}
+			}
+
+			linkdata[data.id] = link;
+		}
+
+		console.log(userdata);
+		console.log(linkdata);
+
+		return {
+			metadata: metadata, 
+			sections: sections,
+			application: application
+		};
+	}
 
 	return STAMLTransformer;
-});
+})();
