@@ -1,5 +1,16 @@
 var STAMLTransformer = (function(){
 
+	String.prototype.escape = function() {
+	    var tagsToReplace = {
+	        '&': '&amp;',
+	        '<': '&lt;',
+	        '>': '&gt;'
+	    };
+	    return this.replace(/[&<>]/g, function(tag) {
+	        return tagsToReplace[tag] || tag;
+	    });
+	};
+
 	if (!Array.isArray) {
 	  Array.isArray = function(arg) {
 	    return Object.prototype.toString.call(arg) === '[object Array]';
@@ -100,14 +111,19 @@ var STAMLTransformer = (function(){
 		}
 
 		if( node.hasAttribute("linkdataRef") ){
-			nodeData.userdata = linkdata[node.getAttribute("linkdataRef")];
+			nodeData.linkdata = linkdata[node.getAttribute("linkdataRef")];
 		}
 
 		for( var i = 0 ; i < node.childNodes.length ; i++ ){
 			if( node.childNodes[i].nodeType === 3 ){
 				nodeData.content = node.childNodes[i].nodeValue;
 			}
+			else if( node.childNodes[i].nodeType === 1 ){
+				nodeData.content = this.recursiveXML(node.childNodes[i], userdata, linkdata);
+			}
 		}
+
+		return nodeData;
 	}
 
 	STAMLTransformer.prototype.XMLtoContent = function(xmlNode, userdata, linkdata){
@@ -119,7 +135,7 @@ var STAMLTransformer = (function(){
 		var childNodes = xmlNode.childNodes;
 		for( var i = 0 ; i < childNodes.length ; i++ ){
 			if( childNodes[i].nodeType === 3 ){
-				result.push( childNodes[i].nodeValue );
+				result.push( childNodes[i].nodeValue.escape() );
 			}
 			else if( childNodes[i].nodeType === 1 ){
 				result.push( this.recursiveXML(childNodes[i], userdata, linkdata) );
@@ -234,8 +250,8 @@ var STAMLTransformer = (function(){
 			var data = { id: dataNodes[i].getAttribute("refID") };
 			var childNodes = dataNodes[i].childNodes;
 			for( var j = 0 ; j < childNodes.length ; j++ ){
-				if( childNodes[i].nodeType === 1 ){
-					data[childNodes[i].nodeName] = childNodes[i].firstChild.nodeValue;
+				if( childNodes[j].nodeType === 1 ){
+					data[childNodes[j].nodeName] = childNodes[j].firstChild.nodeValue;
 				}
 			}
 
@@ -248,8 +264,8 @@ var STAMLTransformer = (function(){
 			var link = { id: linkNodes[i].getAttribute("refID") };
 			var childNodes = linkNodes[i].childNodes;
 			for( var j = 0 ; j < childNodes.length ; j++ ){
-				if( childNodes[i].nodeType === 1 ){
-					link[childNodes[i].nodeName] = childNodes[i].firstChild.nodeValue;
+				if( childNodes[j].nodeType === 1 ){
+					link[childNodes[j].nodeName] = childNodes[j].firstChild.nodeValue;
 				}
 			}
 
@@ -266,16 +282,12 @@ var STAMLTransformer = (function(){
 			sections.push(chapterData);
 		}
 
-		console.log(sections);
-
 		var metadataNodes = xmlDoc.getElementsByTagName("metadata")[0].childNodes;
 		for( var i = 0 ; i < metadataNodes.length ; i++ ){
 			if( metadataNodes[i].nodeType === 1 ){
 				metadata[metadataNodes[i].nodeName] = this.XMLtoContent(metadataNodes[i], userdata, linkdata);
 			}
 		}
-
-		console.log( metadata );
 
 		var applications = xmlDoc.getElementsByTagName("applicationSettings")[0].childNodes;
 		for( var i = 0 ; i < applications.length ; i++ ){
@@ -288,8 +300,6 @@ var STAMLTransformer = (function(){
 			}
 			application.push(applicationData);
 		}
-
-		console.log( application );
 
 		return {
 			metadata: metadata, 

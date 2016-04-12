@@ -25,21 +25,34 @@ var MarkusToSTAMLFuncs = (function(){
 	}
 
 	var tagTable = [
-		{ type: "person", subtype: "fullname", tag: "//span[@type='fullName']", 
-		    linkdata: [ { from: "/@cbdbid", to: "cbdbid"} ]},
+		{ type: "person", tag: "//span[@type='fullName']", 
+		    linkdata: [ { from: "/span/@cbdbid", to: "cbdbid"} ]},
 		{ type: "person", subtype: "othername", tag: "//span[@type='partialName']",
-		    linkdata: [ { from: "/@cbdbid", to: "cbdbid"} ]},
+		    linkdata: [ { from: "/span/@cbdbid", to: "cbdbid"} ]},
 		 { type: "location", tag: "//span[@type='placeName']",
-		    userdata: [ { from: "/@placename_id", to: "note"} ]},
-		 { type: "thing", subtype: "officialTitle", tag: "//span[@type='officialTitle']",
-		    userdata: [ { from: "/@officialtitle_id", to: "note"} ]},
+		    userdata: [ { from: "/span/@placename_id", to: "note"} ]},
+		 { type: "person", subtype: "officialTitle", tag: "//span[@type='officialTitle']",
+		    userdata: [ { from: "/span/@officialtitle_id", to: "note"} ]},
 		 { type: "datetime",  tag: "//span[@type='timePeriod']",
-		    userdata: [ { from: "/@timeperiod_id", to: "note"} ]},
+		    userdata: [ { from: "/span/@timeperiod_id", to: "note"} ]},
 	];
 
 	var tagIgnore = [
 		"/span[@class='commentContainer']"
 	];
+
+	function isString(val) {
+	   return typeof val === 'string' || ((!!val && typeof val === 'object') && Object.prototype.toString.call(val) === '[object String]');
+	}
+
+	var appendAllChildren = function( nodeString, nodeTo ){
+		var parser = new DOMParser();
+		var xmlTemp = parser.parseFromString("<append>" + nodeString + "</append>", "text/xml");
+		var nodeFrom = xmlTemp.getElementsByTagName("append")[0];
+		while( nodeFrom.hasChildNodes() ){
+			nodeTo.appendChild(nodeFrom.removeChild(nodeFrom.firstChild));
+		}
+	}
 
 	var XMLTableToJSON  = function( table ){
 		return function(context){
@@ -123,6 +136,84 @@ var MarkusToSTAMLFuncs = (function(){
 		return content;
 	}
 
+	var generateTag = function( object ){
+		if( isString(object) ) return object;
+
+		var tag = '<span class="' ;
+		var tagName, moreThanOneIdData, moreThanOneIdAttribute;
+		if( object.type === "person" ){
+			if( object.subtype === "othername" ){
+				tagName = "partialName";
+				moreThanOneIdData = "linkdata";
+				moreThanOneIdAttribute = "cbdbid";
+			}
+			else if( object.subtype === "officialTitle" ){
+				tagName = "officialTitle";
+				moreThanOneIdData = "userdata";
+				moreThanOneIdAttribute = "note";
+			}
+			else {
+				tagName = "fullName";
+				moreThanOneIdData = "linkdata";
+				moreThanOneIdAttribute = "cbdbid";
+			}
+		}
+		else if(object.type === "location"){
+			tagName = "placeName";
+			moreThanOneIdData = "userdata";
+			moreThanOneIdAttribute = "note";
+		}
+		else if(object.type === "datetime"){
+			tagName = "timePeriod";
+			moreThanOneIdData = "userdata";
+			moreThanOneIdAttribute = "note";
+		}
+		else {
+			return object.textContent;
+		}
+
+		tag += tagName + " markup unsolved";
+		if( object[moreThanOneIdData] && object[moreThanOneIdData] [moreThanOneIdAttribute] && object[moreThanOneIdData] [moreThanOneIdAttribute] .split("|").length > 1 ){
+			tag += " moreThanOneId";
+		}
+		tag += '" type="' + tagName + '"';
+		if( object.linkdata ){
+			for( var key in object.linkdata ){
+				if( key === "id" ){
+					continue;
+				}
+				tag += " " + key + '="' + object.linkdata[key] + '"';
+			}
+		}
+
+		if( object.userdata ){
+			for( var key in object.userdata ){
+				if( key === "note" ){
+					tag += " " + tagName.toLowerCase + '_id="' + object.userdata[key] + '"'
+				}
+				else if( key === "id" ){
+					continue;
+				}
+				else {
+					tag += " " + key + '="' + object.userdata[key] + '"';
+				}
+			}
+		} 
+
+		tag += ">"
+
+		if( isString(object.content) ){
+			tag += object.content;
+		}
+		else {
+			tag += generateTag(object.content);
+		}
+
+		tag += "</span>"
+
+		return tag;
+	}
+
 	return {
 		metadataTransformer: XMLTableToJSON(metadataTable),
 		sectionDivider: function( context ){
@@ -179,6 +270,46 @@ var MarkusToSTAMLFuncs = (function(){
 			return content;
 		},
 
-		applicationSetting: XMLTableToJSON(applicationTable)
+		applicationSetting: XMLTableToJSON(applicationTable),
+		mergeToContext: function( input ){
+			var metadata = input.metadata;
+			var sections = input.sections;
+			var application = input.application;
+			
+			var parser = new DOMParser();
+			var xmlDoc = parser.parseFromString( "<div class='doc'><pre></pre></div>" ,"text/xml");
+
+			// metadata
+			var rootNode = xmlDoc.evaluate("/div[@class='doc']", xmlDoc, null, XPathResult.ORDERED_NODE_ITERATOR_TYPE, null).iterateNext();
+			
+			var filename = xmlDoc.createAttribute("filename");
+			filename.value = metadata.filename;
+			rootNode.setAttributeNode(filename);
+			
+			// application
+			for( var i = 0 ; i < application.length ;i++ ){
+				if( application[i].name === "MARKUS" ){
+					var tag = xmlDoc.createAttribute("tag");
+					tag.value = application[i].tag;
+					rootNode.setAttributeNode(tag);
+				}
+			}
+
+			// sections
+			var sectionNumber = 0;
+			for( var i = 0 ; i < sections.length ; i++ ){
+				for( var j = 0 ; j < sections[i].length ; j++, sectionNumber++ ){
+					var section = '<span class="passage" type="passage" id="passage' + sectionNumber + '"><span class="commentContainer" value="[]"><span class="glyphicon glyphicon-comment" type="commentIcon" style="display:none" aria-hidden="true" data-markus-passageid="passage' + sectionNumber + '"></span></span>';
+					for( var k = 0 ; k < sections[i][j].length ; k++ ){
+						section += generateTag( sections[i][j][k] );
+					}
+					section += "</span>\n\n"; 
+					appendAllChildren( section, xmlDoc.getElementsByTagName("div")[0].getElementsByTagName("pre")[0] );
+				}
+			}
+
+
+			return (new XMLSerializer()).serializeToString(xmlDoc) ;
+		}
 	};
 })();
