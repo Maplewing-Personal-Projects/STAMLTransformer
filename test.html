@@ -4,6 +4,7 @@
 		<meta charset="utf-8" />
 		<title>STAML Transformer</title>
 		<script src="STAMLTransformer.js"> </script>
+		<script src="MarkusToSTAMLFuncs.js"></script>
 		<script>
 		var s = new STAMLTransformer();
 		var result = s.merge({filename: "ihp-0019987-0004400045-0000044", source: "《中國海關與中日戰爭》", title: ["1890年3月9日",{ content: "赫德", type:"person", userdata: { note: "A person that ...",}, linkdata: {cbdbid: "12345"}}, "致", { content: "倫敦", type:"location"}, "辦事處稅務司", {content:"金登干", type:"person"}, "函Z字第四三一號A"], author: ["總稅務司", {content:"赫德", type:"person"}, "（Robert Hart）"], date:"1890年3月9日（發文）"}, [[[{ content: "朝鮮", type:"location" }, "又生了新的糾紛，前", { content: "美國", type:"location" }, "駐", { content: "廈門", type:"location" }, "領事，曾於1872－", { content: "73年", type: "date"}, "領", { content: "日本", type:"location" }, "人占", { content: "台灣", type:"location" } , "的", { content: "李仙德", type:"person" },"（Charles LeGendre）現在到了", { content: "漢城", type:"location" },"，背後有", { content: "日本", type:"location" }, "的支持，目的在趕走德尼和史納機，並且破壞", { content: "朝鮮", type:"location" },"與中國的關係。看來這個玩火的傢伙要在", { content: "朝鮮", type:"location" }, "點著戰火了。昨日", { content: "總理衙門", type:"person", subtype: "officialTitle" },"要我認真處理這件事，但已經到了這時候，恐怕很不容易了。如果", { content: "十年", type: "date"},"前或兩年前他們就肯聽我的勸告，也許還有辦法，現在他們已深陷泥淖，如何解決倒頗非易事哩。"]]], {name: "THDL", key:"1234"}) ;
@@ -14,6 +15,6 @@
 		</script>
 	</head>
 	<body>
-
+	<textarea id="input"></textarea>
 	</body>
 </html>

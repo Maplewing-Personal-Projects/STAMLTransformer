@@ -42,6 +42,29 @@ var STAMLTransformer = (function(){
 		return this.mergeToContext( this.unmerge(STAMLcontext) );
 	}
 
+	STAMLTransformer.prototype.recursiveContent = function(content, setting, checkList, result){
+		result.content += "<" + content.type;
+		if( content.subtype ) result.content += " subtype='" + content.subtype + "'";
+		
+		for( var i = 0 ; i < checkList.length ; i++ ){
+			if( content[checkList[i]] ){
+				result.content += " " + checkList[i] + "Ref='" + setting[checkList[i]] + "'";
+				content[checkList[i]].id = setting[checkList[i]];
+				result[checkList[i]].push(content[checkList[i]]);
+				++setting[checkList[i]];
+			}
+		}
+		result.content += ">";
+		if(  isString(content.content) ){
+			result.content += content.content;
+		}
+		else {
+			this.recursiveContent(content.content, setting, checkList, result);
+		}
+
+		result.content += "</" + content.type + ">";
+	}
+
 	STAMLTransformer.prototype.contentToXMLString = function(content, setting){
 		var checkList = ["userdata", "linkdata"];
 		var result = { content: "" };
@@ -59,22 +82,32 @@ var STAMLTransformer = (function(){
 				result.content += content[i];
 			}
 			else {
-				result.content += "<" + content[i].type;
-				if( content[i].subtype ) result.content += " subtype='" + content[i].subtype + "'";
-				
-				for( var j = 0 ; j < checkList.length ; j++ ){
-					if( content[i][checkList[j]] ){
-						result.content += " " + checkList[j] + "Ref='" + setting[checkList[j]] + "'";
-						content[i][checkList[j]].id = setting[checkList[j]];
-						result[checkList[j]].push(content[i][checkList[j]]);
-						++setting[checkList[j]];
-					}
-				}
-				result.content += ">" + content[i].content + "</" + content[i].type + ">";
+				this.recursiveContent(content[i], setting, checkList, result);
 			}
 		}
 
 		return result;
+	}
+
+	STAMLTransformer.prototype.recursiveXML = function(node, userdata, linkdata ){
+		var nodeData = { type: node.nodeName };
+		if( node.hasAttribute("subtype") ){
+			nodeData.subtype = node.getAttribute("subtype") ;
+		}
+
+		if( node.hasAttribute("userdataRef") ){
+			nodeData.userdata = userdata[node.getAttribute("userdataRef")];
+		}
+
+		if( node.hasAttribute("linkdataRef") ){
+			nodeData.userdata = linkdata[node.getAttribute("linkdataRef")];
+		}
+
+		for( var i = 0 ; i < node.childNodes.length ; i++ ){
+			if( node.childNodes[i].nodeType === 3 ){
+				nodeData.content = node.childNodes[i].nodeValue;
+			}
+		}
 	}
 
 	STAMLTransformer.prototype.XMLtoContent = function(xmlNode, userdata, linkdata){
@@ -89,26 +122,7 @@ var STAMLTransformer = (function(){
 				result.push( childNodes[i].nodeValue );
 			}
 			else if( childNodes[i].nodeType === 1 ){
-				var nodeData = { type: childNodes[i].nodeName };
-				if( childNodes[i].hasAttribute("subtype") ){
-					nodeData.subtype = childNodes[i].getAttribute("subtype") ;
-				}
-
-				if( childNodes[i].hasAttribute("userdataRef") ){
-					nodeData.userdata = userdata[childNodes[i].getAttribute("userdataRef")];
-				}
-
-				if( childNodes[i].hasAttribute("linkdataRef") ){
-					nodeData.userdata = linkdata[childNodes[i].getAttribute("linkdataRef")];
-				}
-
-				for( var j = 0 ; j < childNodes[i].childNodes.length ; j++ ){
-					if( childNodes[i].childNodes[j].nodeType === 3 ){
-						nodeData.content = childNodes[i].childNodes[j].nodeValue;
-					}
-				}
-
-				result.push(nodeData);
+				result.push( this.recursiveXML(childNodes[i], userdata, linkdata) );
 			}
 		}
 
