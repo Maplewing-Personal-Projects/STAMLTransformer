@@ -1,4 +1,15 @@
 var MarkusToSTAMLFuncs = (function(){
+	String.prototype.escape = function() {
+	    var tagsToReplace = {
+	        '&': '&amp;',
+	        '<': '&lt;',
+	        '>': '&gt;'
+	    };
+	    return this.replace(/[&<>]/g, function(tag) {
+	        return tagsToReplace[tag] || tag;
+	    });
+	};
+
 	var metadataTable = [
 		{ from: "/div[@class='doc']/@filename", to: "filename"}
 	];
@@ -46,7 +57,7 @@ var MarkusToSTAMLFuncs = (function(){
 				var node;
 				while( node = nodes.iterateNext() ){
 					if( node.nodeType === 1 ){
-						jsonData[table[i].to] = node.textContent;
+						jsonData[table[i].to] = node.textContent.escape();
 					}
 					else if( node.nodeType === 2 ){
 						jsonData[table[i].to] = node.value;
@@ -107,7 +118,7 @@ var MarkusToSTAMLFuncs = (function(){
 			}
 		}
 
-		last.content = node.firstChild.textContent;
+		last.content = node.firstChild.textContent.escape();
 
 		return content;
 	}
@@ -150,7 +161,7 @@ var MarkusToSTAMLFuncs = (function(){
 			var nodes = xmlDoc.firstChild.childNodes;
 			for( var i = 0 ; i < nodes.length ; i++ ){
 				if( nodes[i].nodeType === 3 ){
-					content.push( nodes[i].nodeValue );
+					content.push( nodes[i].nodeValue.escape() );
 				}
 				else if( nodes[i].nodeType === 1 ){
 					var node = createXMLDocumentFromNode(nodes[i]);
