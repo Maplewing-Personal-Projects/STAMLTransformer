@@ -1,4 +1,4 @@
-var MarkusToSTAMLFuncs = (function(){
+var funcs = (function(){
 	String.prototype.escape = function() {
 	    var tagsToReplace = {
 	        '&': '&amp;',
@@ -11,34 +11,28 @@ var MarkusToSTAMLFuncs = (function(){
 	};
 
 	var metadataTable = [
-		{ from: "/div[@class='doc']/@filename", to: "filename"}
+		{ from: "/TEI/teiHeader/fileDesc/titleStmt/title", to: "filename"}
 	];
 
 	var applicationTable = [
-		{ key: "name", value: "MARKUS"},
-		{ from: "/div[@class='doc']/@tag", to: "tag"}
 	];
 
 	var sectionDividerTable = {
-		chapter: false,
-		section: "/div[@class='doc']/pre/span[@type='passage']"
+		chapter: "/TEI/text/body/div/p",
+		section: "/p/p"
 	}
 
 	var tagTable = [
-		{ type: "person", tag: "//span[@type='fullName']", 
-		    linkdata: [ { from: "/span/@cbdbid", to: "cbdbid"} ]},
-		{ type: "person", subtype: "othername", tag: "//span[@type='partialName']",
-		    linkdata: [ { from: "/span/@cbdbid", to: "cbdbid"} ]},
-		 { type: "location", tag: "//span[@type='placeName']",
-		    userdata: [ { from: "/span/@placename_id", to: "note"} ]},
-		 { type: "person", subtype: "officialTitle", tag: "//span[@type='officialTitle']",
-		    userdata: [ { from: "/span/@officialtitle_id", to: "note"} ]},
-		 { type: "datetime",  tag: "//span[@type='timePeriod']",
-		    userdata: [ { from: "/span/@timeperiod_id", to: "note"} ]},
+		{ type: "person", tag: "//name[@type='person' and @n='fullName']", 
+		    linkdata: [ { from: "/name/@key", to: "cbdbid"} ]},
+		{ type: "person", subtype: "othername", tag: "//name[@type='person' and @n='partialName']",
+		    linkdata: [ { from: "/name/@key", to: "cbdbid"} ]},
+		 { type: "location", tag: "//placeName"},
+		 { type: "person", subtype: "officialTitle", tag: "//roleName[@n='officialTitle']"},
+		 { type: "datetime",  tag: "//name [@type='timePeriod' and @n='timePeriod']"},
 	];
 
 	var tagIgnore = [
-		"/span[@class='commentContainer']"
 	];
 
 	function isString(val) {
@@ -58,7 +52,7 @@ var MarkusToSTAMLFuncs = (function(){
 		return function(context){
 			var jsonData= {};
 			var parser = new DOMParser();
-			var xmlDoc = parser.parseFromString(context, "text/xml");
+			var xmlDoc = parser.parseFromString(context.replace("xmlns", "xxx").replace("xmlns:xi", "xxxx"), "text/xml");
 
 			for( var i = 0 ; i < table.length ; i++ ){
 				if( table[i].key ){
@@ -218,7 +212,7 @@ var MarkusToSTAMLFuncs = (function(){
 		metadataTransformer: XMLTableToJSON(metadataTable),
 		sectionDivider: function( context ){
 			var parser = new DOMParser();
-			var xmlDoc = parser.parseFromString(context, "text/xml");
+			var xmlDoc = parser.parseFromString(context.replace("xmlns", "xxx").replace("xmlns:xi", "xxxx"), "text/xml");
 
 			var chapters = [];
 			if( sectionDividerTable.chapter ){
