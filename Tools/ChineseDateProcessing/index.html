@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta charset="utf-8" />
+		<title>ChineseDateProcessing</title>
+    <script src="../../src/utility.js"></script>
+    <script src="chineseDateProcessing.js"></script>
+	</head>
+	<body>
+	STAML資料：
+	<textarea id="input1"></textarea><br/>
+	<button id="button1">中西曆轉換</button><br />
+	<textarea id="output"></textarea>
+	<script>
+  document.getElementById("button1").addEventListener("click", function(){
+		var cdp = new ChineseDateProcessing(document.getElementById("input1").value);
+		document.getElementById("output").value = cdp.convert();
+	});
+	</script>
+
+	</body>
+</html>

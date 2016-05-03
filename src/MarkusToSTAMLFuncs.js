@@ -176,7 +176,7 @@ var MarkusToSTAMLFuncs = (function(){
 		tag += '" type="' + tagName + '"';
 		if( object.linkdata ){
 			for( var key in object.linkdata ){
-				if( key === "id" ){
+				if( key === "refID" ){
 					continue;
 				}
 				tag += " " + key + '="' + object.linkdata[key] + '"';
@@ -186,9 +186,9 @@ var MarkusToSTAMLFuncs = (function(){
 		if( object.userdata ){
 			for( var key in object.userdata ){
 				if( key === "note" ){
-					tag += " " + tagName.toLowerCase + '_id="' + object.userdata[key] + '"'
+					tag += " " + tagName.toLowerCase() + '_id="' + object.userdata[key] + '"'
 				}
-				else if( key === "id" ){
+				else if( key === "refID" ){
 					continue;
 				}
 				else {
@@ -197,7 +197,8 @@ var MarkusToSTAMLFuncs = (function(){
 			}
 		}
 
-		tag += ">"
+		tag += ">";
+		console.log( tag );
 
 		if( String.isString(object.content) ){
 			tag += object.content;
@@ -265,12 +266,12 @@ var MarkusToSTAMLFuncs = (function(){
 			rootNode.setAttributeNode(filename);
 
 			// application
-			for( var i = 0 ; i < application.length ;i++ ){
-				if( application[i].name === "MARKUS" ){
-					var tag = xmlDoc.createAttribute("tag");
-					tag.value = application[i].tag;
-					rootNode.setAttributeNode(tag);
-				}
+			if( application ){
+					if( application.tag ){
+						var tag = xmlDoc.createAttribute("tag");
+						tag.value = application.tag;
+						rootNode.setAttributeNode(tag);
+					}
 			}
 
 			// sections

@@ -6,6 +6,7 @@
 		<script src="utility.js"></script>
 		<script src="STAMLTransformer.js"> </script>
 		<script src="MarkusToSTAMLFuncs.js"></script>
+		<script src="PlainTextToSTAMLFuncs.js"></script>
 	</head>
 	<body>
 	原始資料：
@@ -22,6 +23,8 @@
 	<textarea id="input5"></textarea><br/>
 	<button id="button1">MARKUS to STAML</button>
 	<button id ="button2">STAML to MARKUS</button>
+	<button id="button3">PlainText to STAML</button>
+	<button id ="button4">STAML to PlainText</button>
 	<!--
 	<button id="button3">詞夾子to STAML</button>
 	<button id ="button4">STAML to 詞夾子</button>
@@ -38,6 +41,16 @@
 	document.getElementById("button2").addEventListener("click", function(){
 		var MARKUS = new STAMLTransformer(MarkusToSTAMLFuncs);
 		document.getElementById("output").value = MARKUS.transformBack(document.getElementById("input1").value);
+	});
+	
+	document.getElementById("button3").addEventListener("click", function(){
+		var Plain = new STAMLTransformer(PlainTextToSTAMLFuncs);
+		document.getElementById("output").value = Plain.transform(document.getElementById("input1").value);
+	});
+	
+	document.getElementById("button4").addEventListener("click", function(){
+		var Plain = new STAMLTransformer(PlainTextToSTAMLFuncs);
+		document.getElementById("output").value = Plain.transformBack(document.getElementById("input1").value);
 	});
 
 	document.getElementById("button5").addEventListener("click", function(){

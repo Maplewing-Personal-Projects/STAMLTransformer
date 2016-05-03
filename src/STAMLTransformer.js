@@ -87,7 +87,7 @@ var STAMLTransformer = (function(){
 		return object;
 	}
 	
-	STAMLTransformer.prototype.XMLtoTaggedObject = function(setting, xmlNode){
+	STAMLTransformer.prototype.XMLtoTaggedObject = function(isArray, setting, xmlNode){
 		if( xmlNode.childNodes.length === 1 && xmlNode.firstChild.nodeType === 3 ){
 			return xmlNode.firstChild.nodeValue.escape();
 		}
@@ -113,11 +113,11 @@ var STAMLTransformer = (function(){
 				}
 			}
 			
-			object.content = this.XMLtoTaggedObject(setting, childNodes[i]);
+			object.content = this.XMLtoTaggedObject((object.type === "chapter" || object.type === "section"), setting, childNodes[i]);
 			array.push(object);
 		}
 		
-		if( array.length === 1 && array[0].type !== "chapter" && array[0].type !== "section" ){
+		if( !isArray ){
 			return array[0];
 		}
 		else{
@@ -290,7 +290,7 @@ var STAMLTransformer = (function(){
 		
 		/* article */
 		var articleNode = xmlDoc.getElementsByTagName("article")[0];
-		article = this.XMLtoTaggedObject(setting, articleNode);
+		article = this.XMLtoTaggedObject(true, setting, articleNode);
 		
 		/* metadata */
 		var metadataNode = xmlDoc.getElementsByTagName("metadata")[0];
@@ -306,7 +306,7 @@ var STAMLTransformer = (function(){
 			}
 			
 			if( !isRef ){
-				document.metadata[metadataChildNodes[i].nodeName] = this.XMLtoTaggedObject(setting, metadataChildNodes[i]);
+				document.metadata[metadataChildNodes[i].nodeName] = this.XMLtoTaggedObject(false, setting, metadataChildNodes[i]);
 			}
 		}
 		
